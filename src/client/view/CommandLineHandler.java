@@ -39,7 +39,6 @@ public class CommandLineHandler implements Runnable {
                         serverConnection.disconnect();
                         break;
                     default:
-                        System.out.println("cannot parse command");
                         break;
                 }
             }

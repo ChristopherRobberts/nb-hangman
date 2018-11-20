@@ -12,7 +12,7 @@ import java.nio.channels.SocketChannel;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
-public class ClientHandler implements Runnable {
+public class ClientHandler {
     private Controller controller = new Controller();
     private SocketChannel socketChannel;
     private ByteBuffer byteBuffer = ByteBuffer.allocateDirect(2048);
@@ -25,9 +25,10 @@ public class ClientHandler implements Runnable {
     public ClientHandler(SocketChannel socketChannel, Selector selector) throws IOException {
         this.socketChannel = socketChannel;
         this.selector = selector;
+        this.controller.loadWordsIO();
     }
 
-    public void run() {
+    private void events() {
         this.parsedMessage = new MessageParser(this.receivedMsg);
         switch (parsedMessage.command) {
             case START:
@@ -47,6 +48,7 @@ public class ClientHandler implements Runnable {
                 }
                 return;
             default:
+                notValidCommand(FromServer.NO_VALUE);
                 break;
         }
 
@@ -75,7 +77,7 @@ public class ClientHandler implements Runnable {
         byte[] bytes = new byte[byteBuffer.remaining()];
         byteBuffer.get(bytes);
         this.receivedMsg = new String(bytes);
-        new Thread(this).start();
+        events();
     }
 
     private void writeMessage() throws IOException {
@@ -88,14 +90,28 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    private void notValidCommand(FromServer command) {
+        synchronized (messagesToClient) {
+            messagesToClient.add(ByteBuffer.wrap(String.valueOf(command).getBytes()));
+        }
+        try {
+            writeMessage();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        socketChannel.keyFor(selector).interestOps(SelectionKey.OP_READ);
+        selector.wakeup();
+    }
+
     void sendToClient() {
         String wordState;
-        if ((!this.controller.gameIsOngoing() && this.controller.gameIsWon()) || this.controller.gameIsOngoing()) {
+        if ((!this.controller.gameIsOngoing() && this.controller.gameIsWon())
+                || ((!this.controller.gameIsOngoing() && this.controller.gameIsLost()))
+                || this.controller.gameIsOngoing()) {
             wordState = stateConstructor();
         } else {
             wordState = String.valueOf(FromServer.NOT_INITIALIZED);
         }
-
         synchronized (messagesToClient) {
             messagesToClient.add(ByteBuffer.wrap(wordState.getBytes()));
         }

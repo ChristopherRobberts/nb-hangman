@@ -64,7 +64,6 @@ public class GameServer {
 
         ClientHandler clientHandler = new ClientHandler(socketChannel, this.selector);
         socketChannel.register(this.selector, SelectionKey.OP_READ, clientHandler);
-        System.out.println(socketChannel.keyFor(selector).isReadable());
     }
 
     private void readFromClient(SelectionKey key) {

@@ -9,16 +9,26 @@ public class Game {
     private char[] knownWord;
     private boolean isOngoing = false;
     private boolean isWon = false;
+    private boolean isLost = false;
     private int score = 0;
+    private Word wordGenerator;
+
+
+    public void loadWordsFromFile() {
+        this.wordGenerator = new Word();
+    }
 
     public void startGame() {
-        Word wordGenerator = new Word();
-        this.isOngoing = true;
-        this.word = wordGenerator.getWord().toLowerCase();
-        this.unknownWord = wordGenerator.getHiddenWord().replaceAll("\\s", "").toCharArray();
-        this.knownWord = this.word.toCharArray();
-        gameState = new GameState(formatString(this.unknownWord), this.score, this.word.length());
-        System.out.println(this.word);
+        try {
+            this.isOngoing = true;
+            this.word = this.wordGenerator.getWord().toLowerCase();
+            this.unknownWord = this.wordGenerator.getHiddenWord().replaceAll("\\s", "").toCharArray();
+            this.knownWord = this.word.toCharArray();
+            this.gameState = new GameState(formatString(this.unknownWord), this.score, this.word.length());
+            System.out.println(this.word);
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+        }
     }
 
     public void processGuess(String guess) {
@@ -59,6 +69,7 @@ public class Game {
             this.score--;
             this.gameState.score--;
             this.isOngoing = false;
+            this.isLost = true;
         }
     }
 
@@ -67,6 +78,8 @@ public class Game {
     }
 
     public boolean isWon() { return this.isWon; }
+
+    public boolean isLost() { return this.isLost; }
 
     public int getScoreState() {
         return this.gameState.score;
