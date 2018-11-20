@@ -12,6 +12,8 @@ import java.nio.channels.SocketChannel;
 import java.util.ArrayDeque;
 import java.util.Iterator;
 import java.util.Queue;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 
 public class ServerConnection implements Runnable {
     private OutputHandler outputHandler;
@@ -134,7 +136,7 @@ public class ServerConnection implements Runnable {
         try {
             sendMessageToServer();
             connected = false;
-            outputHandler.disconnected();
+            notifyDisconnected();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -160,27 +162,46 @@ public class ServerConnection implements Runnable {
         FromServer type = FromServer.valueOf(parts[0]);
         switch (type) {
             case STATE:
-                retrieveState(parts);
+                notifyRetrievedState(parts);
                 break;
             case NOT_INITIALIZED:
-                outputHandler.uninitializedGame();
+                notifyUninitializedGame();
                 break;
             case NO_VALUE:
-                outputHandler.unknown();
+                notifyUnknownOperation();
                 break;
             default:
-                outputHandler.unknown();
+                notifyUnknownOperation();
                 break;
         }
     }
 
-    private void retrieveState(String[] parts) {
+    private void notifyRetrievedState(String[] parts) {
         String[] state = new String[3];
         for (int i = 0; i < state.length; i++) {
             state[i] = parts[i+1];
         }
-        outputHandler.readWordState(state[0]);
-        outputHandler.readAttemptsState(state[1]);
-        outputHandler.readScoreState(state[2]);
+
+        Executor ex = ForkJoinPool.commonPool();
+        ex.execute(() -> {
+            outputHandler.readWordState(state[0]);
+            outputHandler.readAttemptsState(state[1]);
+            outputHandler.readScoreState(state[2]);
+        });
+    }
+
+    private void notifyUninitializedGame() {
+        Executor ex = ForkJoinPool.commonPool();
+        ex.execute(() -> outputHandler.uninitializedGame());
+    }
+
+    private void notifyUnknownOperation() {
+        Executor ex = ForkJoinPool.commonPool();
+        ex.execute(() -> outputHandler.unknown());
+    }
+
+    private void notifyDisconnected() {
+        Executor ex = ForkJoinPool.commonPool();
+        ex.execute(() -> outputHandler.disconnected());
     }
 }
